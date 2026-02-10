@@ -97,10 +97,3 @@ jobs:
             exit 1
           fi
           echo "✅ /users 接口测试通过！"
-
-      - name: 上传示例运行日志（便于调试）
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: axio-demo-logs
-          path: axio-demo.log
