@@ -1,0 +1,24 @@
+[serve]
+listen = "0.0.0.0:8000"
+
+[logging]
+level = "debug" # trace > debug > info > warn > error
+
+[logging.writer]
+type = "stdout"
+
+# [logging.writer]
+# type = "file"
+# directory = "./log"
+# file_name_prefix = "axio.log"
+
+[postgres]
+url = "postgres://axio:4x10@127.0.0.1:5432/axio"
+max_connections = 10
+min_connections = 1
+acquire_timeout = 30                             # 秒
+idle_timeout = 600                               # 秒
+max_lifetime = 1800                              # 秒
+
+[redis]
+url = "redis://127.0.0.1:6379"
