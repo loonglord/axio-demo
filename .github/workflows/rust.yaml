@@ -1,0 +1,106 @@
+name: Axio Demo CI
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  validate-axio-demo:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: axio
+          POSTGRES_PASSWORD: 4x10
+          POSTGRES_DB: axio
+        ports: [5432:5432]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+
+      redis:
+        image: redis:7
+        ports: [6379:6379]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgres://axio:4x10@127.0.0.1:5432/axio
+
+    steps:
+      - name: 拉取示例代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Rust 工具链
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: 安装 sqlx-cli
+        run: cargo install sqlx-cli --no-default-features --features postgres
+
+      - name: 缓存 Rust 依赖
+        uses: Swatinem/rust-cache@v2
+
+      - name: 等待 PostgreSQL 就绪并执行迁移
+        run: |
+          until pg_isready -h localhost -p 5432 -U axio; do sleep 1; done
+          sqlx migrate run --source migrations/
+
+      - name: 检查代码格式化
+        run: cargo fmt --check
+
+      - name: 运行 Clippy 静态检查
+        run: cargo clippy -- -D warnings
+
+      - name: 构建 axio 示例项目
+        run: cargo build --release
+
+      - name: 启动 axio 示例服务
+        run: |
+          nohup cargo run --release > axio-demo.log 2>&1 &
+          for i in {1..10}; do
+            if curl -s http://localhost:8000/; then
+              echo "✅ axio 示例服务启动成功！"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "❌ axio 示例服务启动失败，日志如下："
+          cat axio-demo.log
+          exit 1
+
+      - name: 测试 axio 示例接口
+        run: |
+          sudo apt-get update && sudo apt-get install -y jq
+
+          # 测试根接口
+          echo "🔍 测试根接口 /"
+          ROOT_RES=$(curl -s http://localhost:8000/)
+          if [ "$ROOT_RES" != "Hello, axio-demo!" ]; then
+            echo "❌ 根接口测试失败：预期 'Hello, axio-demo!'，实际 '$ROOT_RES'"
+            exit 1
+          fi
+          echo "✅ 根接口测试通过！"
+
+          # 测试用户创建接口
+          echo "🔍 测试用户创建接口 /users"
+          USER_RES=$(curl -s -X POST -H "Content-Type: application/json" -d '{"username":"axio_demo_user"}' http://localhost:8000/users)
+          if ! echo "$USER_RES" | jq -e '.id != null and .username == "axio_demo_user"'; then
+            echo "❌ /users 接口测试失败：响应 = $USER_RES"
+            exit 1
+          fi
+          echo "✅ /users 接口测试通过！"
+
+      - name: 上传示例运行日志（便于调试）
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: axio-demo-logs
+          path: axio-demo.log
