@@ -4,10 +4,10 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-anyhow = "1.0.101"
-axio = { git = "https://github.com/loonglord/axio", branch = "main" }
+anyhow = "1.0.102"
+axio = { git = "https://github.com/loonglord/axio", rev = "f9c2c70" }
 axum = "0.8.8"
-redis = "1.0.3"
+redis = "1.0.4"
 serde = "1.0.228"
 sqlx = "0.8.6"
 tokio = { version = "1.49.0", features = ["rt-multi-thread"] }
