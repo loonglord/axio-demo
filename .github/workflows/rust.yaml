@@ -3,6 +3,11 @@ name: Axio Demo CI
 on:
   push:
     branches: [main]
+    paths:
+      - ".github/workflows/**"
+      - "migrations/**"
+      - "src/**"
+      - "Cargo.toml"
 
 jobs:
   validate-axio-demo:
